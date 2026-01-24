@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { 
+  StyleSheet, Text, View, TouchableOpacity, 
+  ActivityIndicator, Image, TextInput, Keyboard 
+} from 'react-native';
 
-// 1. Definimos la estructura de los datos que esperamos
+// La interface se mantiene igual
 interface GitHubUser {
   name: string;
   bio: string;
@@ -10,22 +13,34 @@ interface GitHubUser {
 }
 
 export default function App() {
-  // 2. Le decimos al estado que guardará un objeto de tipo GitHubUser o null
+  // 1. Estado para el texto que escribe el usuario
+  const [username, setUsername] = useState<string>('');
   const [userData, setUserData] = useState<GitHubUser | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchGitHubUser = async () => {
+  // 2. Función de búsqueda asíncrona mejorada
+  const searchUser = async () => {
+    if (username.trim() === '') return; // No buscar si el campo está vacío
+
     try {
       setLoading(true);
+      setError(null);
+      Keyboard.dismiss(); // Oculta el teclado al buscar
 
-      const response = await fetch('https://api.github.com/users/octocat');
+      // Usamos "template literals" (las comillas invertidas ``) 
+      // para meter la variable 'username' dentro de la URL
+      const response = await fetch(`https://api.github.com/users/${username}`);
       
-      // 3. Tipamos la respuesta del JSON
-      const data: GitHubUser = await response.json();
+      if (!response.ok) {
+        throw new Error('Usuario no encontrado');
+      }
 
+      const data: GitHubUser = await response.json();
       setUserData(data);
-    } catch (error) {
-      alert("Error al conectar con el servidor");
+    } catch (err: any) {
+      setUserData(null);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -33,54 +48,60 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>GitHub Explorer TS</Text>
+      <Text style={styles.title}>GitHub Finder</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
-      ) : (
-        <View style={styles.card}>
-          {userData ? (
-            <View style={styles.profileContainer}>
-              {/* Ahora podemos usar avatar_url con seguridad */}
-              <Image source={{ uri: userData.avatar_url }} style={styles.avatar} />
-              
-              <Text style={styles.name}>{userData.name}</Text>
-              <Text style={styles.bio}>{userData.bio || "Sin biografía"}</Text>
-              
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>Repos: {userData.public_repos}</Text>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.placeholder}>Presiona el botón para cargar</Text>
-          )}
-        </View>
-      )}
+      {/* 3. El campo de entrada de texto */}
+      <TextInput
+        style={styles.input}
+        placeholder="Escribe un usuario (ej: facebook)"
+        value={username}
+        onChangeText={setUsername} // Actualiza el estado con cada letra
+        autoCapitalize="none"
+      />
 
       <TouchableOpacity 
         style={[styles.button, loading && { opacity: 0.5 }]} 
-        onPress={fetchGitHubUser}
-        disabled={loading} // Evitamos múltiples clics mientras carga
+        onPress={searchUser}
+        disabled={loading}
       >
-        <Text style={styles.buttonText}>
-          {loading ? 'Cargando...' : 'Obtener Octocat'}
-        </Text>
+        <Text style={styles.buttonText}>{loading ? 'Buscando...' : 'Buscar Usuario'}</Text>
       </TouchableOpacity>
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      <View style={styles.card}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#007AFF" />
+        ) : userData ? (
+          <View style={styles.profileContainer}>
+            <Image source={{ uri: userData.avatar_url }} style={styles.avatar} />
+            <Text style={styles.name}>{userData.name || username}</Text>
+            <Text style={styles.bio}>{userData.bio || "Este usuario no tiene biografía"}</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Repos: {userData.public_repos}</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.placeholder}>Ingresa un nombre para ver su perfil</Text>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f2f5', padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, color: '#1c1e21' },
-  card: { width: '100%', backgroundColor: 'white', borderRadius: 20, padding: 25, alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5, minHeight: 200, justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 20, paddingTop: 60 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  input: { backgroundColor: 'white', padding: 15, borderRadius: 10, fontSize: 16, marginBottom: 10, borderWidth: 1, borderColor: '#ddd' },
+  button: { backgroundColor: '#24292e', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 20 },
+  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  errorText: { color: 'red', textAlign: 'center', marginBottom: 10 },
+  card: { backgroundColor: 'white', borderRadius: 20, padding: 20, alignItems: 'center', minHeight: 250, justifyContent: 'center', elevation: 4 },
   profileContainer: { alignItems: 'center' },
-  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 15 },
-  name: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 15 },
+  name: { fontSize: 22, fontWeight: 'bold' },
   bio: { fontSize: 14, color: '#666', textAlign: 'center', marginVertical: 10 },
-  badge: { backgroundColor: '#e7f3ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  badgeText: { color: '#007AFF', fontWeight: '600' },
-  placeholder: { color: '#999', fontStyle: 'italic' },
-  button: { marginTop: 30, backgroundColor: '#007AFF', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 12, width: '100%', alignItems: 'center' },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' }
+  badge: { backgroundColor: '#007AFF', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20 },
+  badgeText: { color: 'white', fontWeight: 'bold' },
+  placeholder: { color: '#999' }
 });
