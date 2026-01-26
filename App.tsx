@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#000', padding: 15, borderRadius: 10, width: '100%', alignItems: 'center' },
   buttonText: { color: '#fff' },
   card: { marginTop: 30, padding: 20, alignItems: 'center', backgroundColor: '#f9f9f9', borderRadius: 15, width: '100%' },
+  profileContainer: { alignItems: 'center' },
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
   name: { fontSize: 18, fontWeight: 'bold' },
   bio: { textAlign: 'center', color: '#666' }
