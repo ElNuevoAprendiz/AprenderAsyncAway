@@ -84,6 +84,7 @@ export default function App() {
             <Image source={{ uri: userData.avatar_url }} style={styles.avatar} />
             <Text style={styles.name}>{userData.name}</Text>
             <Text style={styles.bio}>{userData.bio}</Text>
+            <Text>Repositorios Públicos: {userData.public_repos}</Text> 
           </View>
         ) : (
           <Text>No hay datos guardados</Text>
