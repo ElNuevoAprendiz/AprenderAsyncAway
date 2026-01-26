@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, Text, View, TouchableOpacity, 
   ActivityIndicator, Image, TextInput, Keyboard 
 } from 'react-native';
+// Importamos el almacenamiento persistente
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// La interface se mantiene igual
 interface GitHubUser {
   name: string;
   bio: string;
@@ -13,34 +14,48 @@ interface GitHubUser {
 }
 
 export default function App() {
-  // 1. Estado para el texto que escribe el usuario
   const [username, setUsername] = useState<string>('');
   const [userData, setUserData] = useState<GitHubUser | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // 2. Función de búsqueda asíncrona mejorada
+  // --- NUEVO: CARGAR DATOS AL INICIAR ---
+  // useEffect se ejecuta cuando la App se monta
+  useEffect(() => {
+    loadSavedUser();
+  }, []);
+
+  const loadSavedUser = async () => {
+    try {
+      // Intentamos leer de la memoria del teléfono
+      const savedData = await AsyncStorage.getItem('@last_user');
+      if (savedData !== null) {
+        // Como guardamos texto, lo convertimos de vuelta a objeto
+        setUserData(JSON.parse(savedData));
+      }
+    } catch (e) {
+      console.error("Error cargando datos", e);
+    }
+  };
+
+  // --- FUNCIÓN DE BÚSQUEDA ---
   const searchUser = async () => {
-    if (username.trim() === '') return; // No buscar si el campo está vacío
+    if (username.trim() === '') return;
 
     try {
       setLoading(true);
-      setError(null);
-      Keyboard.dismiss(); // Oculta el teclado al buscar
+      Keyboard.dismiss();
 
-      // Usamos "template literals" (las comillas invertidas ``) 
-      // para meter la variable 'username' dentro de la URL
       const response = await fetch(`https://api.github.com/users/${username}`);
-      
-      if (!response.ok) {
-        throw new Error('Usuario no encontrado');
-      }
-
       const data: GitHubUser = await response.json();
+
       setUserData(data);
-    } catch (err: any) {
-      setUserData(null);
-      setError(err.message);
+
+      // --- NUEVO: GUARDAR EN MEMORIA ---
+      // AsyncStorage solo guarda strings, así que convertimos el objeto
+      await AsyncStorage.setItem('@last_user', JSON.stringify(data));
+      
+    } catch (err) {
+      alert("Usuario no encontrado");
     } finally {
       setLoading(false);
     }
@@ -48,60 +63,55 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>GitHub Finder</Text>
+      <Text style={styles.title}>GitHub Finder + Memory</Text>
 
-      {/* 3. El campo de entrada de texto */}
       <TextInput
         style={styles.input}
-        placeholder="Escribe un usuario (ej: facebook)"
+        placeholder="Usuario de GitHub"
         value={username}
-        onChangeText={setUsername} // Actualiza el estado con cada letra
-        autoCapitalize="none"
+        onChangeText={setUsername}
       />
 
-      <TouchableOpacity 
-        style={[styles.button, loading && { opacity: 0.5 }]} 
-        onPress={searchUser}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Buscando...' : 'Buscar Usuario'}</Text>
+      <TouchableOpacity style={styles.button} onPress={searchUser}>
+        <Text style={styles.buttonText}>Buscar y Guardar</Text>
       </TouchableOpacity>
-
-      {error && <Text style={styles.errorText}>{error}</Text>}
 
       <View style={styles.card}>
         {loading ? (
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" />
         ) : userData ? (
           <View style={styles.profileContainer}>
             <Image source={{ uri: userData.avatar_url }} style={styles.avatar} />
-            <Text style={styles.name}>{userData.name || username}</Text>
-            <Text style={styles.bio}>{userData.bio || "Este usuario no tiene biografía"}</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Repos: {userData.public_repos}</Text>
-            </View>
+            <Text style={styles.name}>{userData.name}</Text>
+            <Text style={styles.bio}>{userData.bio}</Text>
           </View>
         ) : (
-          <Text style={styles.placeholder}>Ingresa un nombre para ver su perfil</Text>
+          <Text>No hay datos guardados</Text>
         )}
       </View>
+      
+      {/* Botón extra para probar el borrado */}
+      <TouchableOpacity 
+        onPress={async () => {
+          await AsyncStorage.removeItem('@last_user');
+          setUserData(null);
+        }}
+      >
+        <Text style={{color: 'red', marginTop: 20}}>Borrar Memoria</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
+// ... (Los estilos se mantienen similares al ejemplo anterior)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 20, paddingTop: 60 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  input: { backgroundColor: 'white', padding: 15, borderRadius: 10, fontSize: 16, marginBottom: 10, borderWidth: 1, borderColor: '#ddd' },
-  button: { backgroundColor: '#24292e', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 20 },
-  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  errorText: { color: 'red', textAlign: 'center', marginBottom: 10 },
-  card: { backgroundColor: 'white', borderRadius: 20, padding: 20, alignItems: 'center', minHeight: 250, justifyContent: 'center', elevation: 4 },
-  profileContainer: { alignItems: 'center' },
-  avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 15 },
-  name: { fontSize: 22, fontWeight: 'bold' },
-  bio: { fontSize: 14, color: '#666', textAlign: 'center', marginVertical: 10 },
-  badge: { backgroundColor: '#007AFF', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20 },
-  badgeText: { color: 'white', fontWeight: 'bold' },
-  placeholder: { color: '#999' }
+  container: { flex: 1, backgroundColor: '#fff', padding: 40, alignItems: 'center' },
+  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+  input: { borderBottomWidth: 1, width: '100%', marginBottom: 20, padding: 8 },
+  button: { backgroundColor: '#000', padding: 15, borderRadius: 10, width: '100%', alignItems: 'center' },
+  buttonText: { color: '#fff' },
+  card: { marginTop: 30, padding: 20, alignItems: 'center', backgroundColor: '#f9f9f9', borderRadius: 15, width: '100%' },
+  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
+  name: { fontSize: 18, fontWeight: 'bold' },
+  bio: { textAlign: 'center', color: '#666' }
 });
