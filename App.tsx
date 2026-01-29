@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, Text, View, TouchableOpacity, 
-  ActivityIndicator, Image, TextInput, Keyboard 
-} from 'react-native';
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 // Importamos el almacenamiento persistente
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface GitHubUser {
   name: string;
@@ -14,7 +20,7 @@ interface GitHubUser {
 }
 
 export default function App() {
-  const [username, setUsername] = useState<string>('');
+  const [username, setUsername] = useState<string>("");
   const [userData, setUserData] = useState<GitHubUser | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -27,7 +33,7 @@ export default function App() {
   const loadSavedUser = async () => {
     try {
       // Intentamos leer de la memoria del teléfono
-      const savedData = await AsyncStorage.getItem('@last_user');
+      const savedData = await AsyncStorage.getItem("@last_user");
       if (savedData !== null) {
         // Como guardamos texto, lo convertimos de vuelta a objeto
         setUserData(JSON.parse(savedData));
@@ -39,21 +45,26 @@ export default function App() {
 
   // --- FUNCIÓN DE BÚSQUEDA ---
   const searchUser = async () => {
-    if (username.trim() === '') return;
+    if (username.trim() === "") return;
 
     try {
       setLoading(true);
       Keyboard.dismiss();
 
       const response = await fetch(`https://api.github.com/users/${username}`);
+
+      // Ver la explicación de la siguiente línea en el archivo usoResponseOk.md
+      if (!response.ok) {
+        throw new Error("Usuario no encontrado");
+      }
+
       const data: GitHubUser = await response.json();
 
       setUserData(data);
 
       // --- NUEVO: GUARDAR EN MEMORIA ---
       // AsyncStorage solo guarda strings, así que convertimos el objeto
-      await AsyncStorage.setItem('@last_user', JSON.stringify(data));
-      
+      await AsyncStorage.setItem("@last_user", JSON.stringify(data));
     } catch (err) {
       alert("Usuario no encontrado");
     } finally {
@@ -81,24 +92,27 @@ export default function App() {
           <ActivityIndicator size="large" />
         ) : userData ? (
           <View style={styles.profileContainer}>
-            <Image source={{ uri: userData.avatar_url }} style={styles.avatar} />
+            <Image
+              source={{ uri: userData.avatar_url }}
+              style={styles.avatar}
+            />
             <Text style={styles.name}>{userData.name}</Text>
             <Text style={styles.bio}>{userData.bio}</Text>
-            <Text>Repositorios Públicos: {userData.public_repos}</Text> 
+            <Text>Repositorios Públicos: {userData.public_repos}</Text>
           </View>
         ) : (
           <Text>No hay datos guardados</Text>
         )}
       </View>
-      
+
       {/* Botón extra para probar el borrado */}
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={async () => {
-          await AsyncStorage.removeItem('@last_user');
+          await AsyncStorage.removeItem("@last_user");
           setUserData(null);
         }}
       >
-        <Text style={{color: 'red', marginTop: 20}}>Borrar Memoria</Text>
+        <Text style={{ color: "red", marginTop: 20 }}>Borrar Memoria</Text>
       </TouchableOpacity>
     </View>
   );
@@ -106,14 +120,32 @@ export default function App() {
 
 // ... (Los estilos se mantienen similares al ejemplo anterior)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 40, alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
-  input: { borderBottomWidth: 1, width: '100%', marginBottom: 20, padding: 8 },
-  button: { backgroundColor: '#000', padding: 15, borderRadius: 10, width: '100%', alignItems: 'center' },
-  buttonText: { color: '#fff' },
-  card: { marginTop: 30, padding: 20, alignItems: 'center', backgroundColor: '#f9f9f9', borderRadius: 15, width: '100%' },
-  profileContainer: { alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 40,
+    alignItems: "center",
+  },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  input: { borderBottomWidth: 1, width: "100%", marginBottom: 20, padding: 8 },
+  button: {
+    backgroundColor: "#000",
+    padding: 15,
+    borderRadius: 10,
+    width: "100%",
+    alignItems: "center",
+  },
+  buttonText: { color: "#fff" },
+  card: {
+    marginTop: 30,
+    padding: 20,
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    borderRadius: 15,
+    width: "100%",
+  },
+  profileContainer: { alignItems: "center" },
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
-  name: { fontSize: 18, fontWeight: 'bold' },
-  bio: { textAlign: 'center', color: '#666' }
+  name: { fontSize: 18, fontWeight: "bold" },
+  bio: { textAlign: "center", color: "#666" },
 });
